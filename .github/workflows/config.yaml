@@ -1,0 +1,117 @@
+# ============================================================
+# SAM.gov Contract Opportunity Monitor — Configuration
+# ============================================================
+# Secrets can be left as placeholders here and supplied through environment
+# variables instead. Environment variables always win over this file, which is
+# how the GitHub Actions workflow injects secrets without committing them.
+# See the header of config_loader.py for the full list of variables.
+# ============================================================
+
+sam:
+  # Free key from https://sam.gov → sign in → Account Details.
+  # In GitHub Actions this comes from the SAM_API_KEY secret instead.
+  api_key: "YOUR_SAM_GOV_API_KEY"
+
+  # Days to look back on the very first run, before any history exists.
+  # Later runs resume from the last recorded run automatically.
+  lookback_days: 7
+
+  # Results per API page (maximum 1000).
+  page_size: 100
+
+  # Only return opportunities that are still open.
+  active_only: true
+
+# ============================================================
+# Search filters — at least one keyword or NAICS code is required
+# ============================================================
+filters:
+  # Each keyword becomes its own API query, matched against the notice TITLE.
+  keywords:
+    - "cybersecurity"
+    - "software development"
+    - "systems engineering"
+    - "test and evaluation"
+
+  # NAICS codes to monitor (6 digits or fewer).
+  naics_codes:
+    - "541511"   # Custom Computer Programming Services
+    - "541512"   # Computer Systems Design Services
+    - "541330"   # Engineering Services
+    - "541715"   # R&D in Physical, Engineering, and Life Sciences
+
+  # Optional set-aside filter. The API accepts one value per query, so only
+  # the first entry is used. Leave empty for no set-aside filtering.
+  # Codes: SBA, 8A, 8AN, HZC, HZS, WOSB, WOSBSS, EDWOSB, SDVOSBC, VSA, VSS
+  set_asides: []
+
+  # Optional place-of-performance state, e.g. "TX". Empty means nationwide.
+  state: ""
+
+  # Optional notice types. Empty means all types.
+  #   o = Solicitation          p = Presolicitation
+  #   r = Sources Sought        k = Combined Synopsis/Solicitation
+  #   i = Intent to Bundle      a = Award Notice
+  procurement_types: []
+
+# ============================================================
+# Notifications — Slack
+# ============================================================
+slack:
+  enabled: false
+  # Create at https://api.slack.com/apps → your app → Incoming Webhooks.
+  # In GitHub Actions this comes from the SLACK_WEBHOOK_URL secret.
+  webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  channel: "#contracts"
+  # Opportunities per Slack message, to stay under Block Kit limits.
+  max_per_message: 10
+
+# ============================================================
+# Notifications — Email (SMTP)
+# ============================================================
+email:
+  enabled: false
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  use_tls: true
+  username: "you@example.com"
+  # For Gmail use an App Password: https://myaccount.google.com/apppasswords
+  password: "YOUR_APP_PASSWORD"
+  from_address: "you@example.com"
+  to_addresses:
+    - "recipient@example.com"
+  subject_prefix: "[SAM.gov Monitor]"
+
+# ============================================================
+# Storage
+# ============================================================
+storage:
+  # "json"   — single readable file; required for GitHub Actions, because the
+  #            file is committed back to the repo to survive the runner reset.
+  # "sqlite" — local database; better for long-running local installs.
+  backend: "json"
+
+  json_path: "history.json"
+  db_path: "history.db"
+
+  # Drop records older than this many days to keep the history compact.
+  # Keep it generous: a dropped record can be alerted again if the
+  # opportunity is still open and still matches. Set 0 to never prune.
+  retention_days: 365
+
+# ============================================================
+# Scheduler — only used when running locally without --run-once.
+# In GitHub Actions the cron in .github/workflows/sam-monitor.yml governs timing.
+# ============================================================
+schedule:
+  run_time: "07:00"
+  run_on_startup: true
+
+# ============================================================
+# Logging
+# ============================================================
+logging:
+  level: "INFO"          # DEBUG, INFO, WARNING, ERROR
+  log_file: "sam_monitor.log"   # empty = console only; skipped inside CI
+  max_mb: 5
+  backup_count: 3
