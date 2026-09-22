@@ -10,7 +10,7 @@
 sam:
   # Free key from https://sam.gov → sign in → Account Details.
   # In GitHub Actions this comes from the SAM_API_KEY secret instead.
-  api_key: "YOUR_SAM_GOV_API_KEY"
+  api_key: "SAM-5e77afc3-38ed-451c-a729-71ba16a7b4ad"
 
   # Days to look back on the very first run, before any history exists.
   # Later runs resume from the last recorded run automatically.
@@ -28,10 +28,25 @@ sam:
 filters:
   # Each keyword becomes its own API query, matched against the notice TITLE.
   keywords:
-    - "cybersecurity"
-    - "software development"
-    - "systems engineering"
-    - "test and evaluation"
+    - "bioengineering"
+    - "biomedical engineering"
+    - "tissue engineering"
+    - "biomanufacturing"
+    - "biomaterials"
+    - "synthetic biology"
+    - "cell therapy"
+    - "gene therapy"
+    - "medical device"
+    - "biosensor"
+    - "regenerative medicine"
+    - "bioprocessing"
+    - "biosensor"
+    - "nano technology"
+    - "liposome"
+    - "hemoglobin oxygen carriers"
+    - "HBOC"
+    - "blood brain barrier"
+    - "wound healing"
 
   # NAICS codes to monitor (6 digits or fewer).
   naics_codes:
