@@ -1,0 +1,107 @@
+name: SAM.gov Monitor
+
+# ─────────────────────────────────────────────────────────────
+# Runs the SAM.gov opportunity check on GitHub's servers.
+# Nothing needs to be installed on your own machine.
+#
+# Required repository secret:
+#   SAM_API_KEY         — your SAM.gov public API key
+#
+# Then at least one delivery channel:
+#   SLACK_WEBHOOK_URL   — Slack incoming webhook  (set SLACK_ENABLED below)
+#   EMAIL_* secrets     — SMTP details            (set EMAIL_ENABLED below)
+#
+# Add secrets under: Settings → Secrets and variables → Actions → New secret
+# ─────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # 12:00 UTC = 07:00 America/Chicago during CDT (summer).
+    # GitHub cron is always UTC and does not follow daylight saving, so this
+    # lands at 06:00 Central during CST (winter). Change to '0 13 * * *' if
+    # you would rather it stay at 07:00 through the winter months.
+    - cron: '0 12 * * *'
+
+  # Lets you trigger a run by hand from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (find matches but send no alerts and save nothing)'
+        type: boolean
+        default: false
+
+# Required so the workflow can commit the updated history file back to the repo.
+permissions:
+  contents: write
+
+# Prevent a manual run and a scheduled run from colliding on the history file.
+concurrency:
+  group: sam-monitor
+  cancel-in-progress: false
+
+jobs:
+  check-opportunities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run monitor
+        env:
+          # ---- Required ----
+          SAM_API_KEY: ${{ secrets.SAM_API_KEY }}
+
+          # ---- Slack (flip to 'true' once SLACK_WEBHOOK_URL is set) ----
+          SLACK_ENABLED: 'false'
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+          # ---- Email (flip to 'true' once the EMAIL_* secrets are set) ----
+          EMAIL_ENABLED: 'false'
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+
+          # ---- Storage: JSON so the history can be committed back ----
+          STORAGE_BACKEND: 'json'
+          LOG_LEVEL: 'INFO'
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python main.py --run-once --dry-run
+          else
+            python main.py --run-once
+          fi
+
+      - name: Commit updated history
+        # Skipped on dry runs, since those intentionally write nothing.
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # Nothing to do if the run found no new opportunities.
+          if git diff --quiet -- history.json; then
+            echo 'No history changes to commit.'
+            exit 0
+          fi
+
+          COUNT=$(python -c "import json; print(len(json.load(open('history.json'))['opportunities']))")
+          git add history.json
+          git commit -m "chore: update SAM.gov history (${COUNT} tracked) [skip ci]"
+
+          # Rebase before pushing in case another run committed first.
+          git pull --rebase --autostash origin ${{ github.ref_name }} || true
+          git push
