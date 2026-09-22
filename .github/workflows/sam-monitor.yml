@@ -67,7 +67,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
           # ---- Email (flip to 'true' once the EMAIL_* secrets are set) ----
-          EMAIL_ENABLED: 'false'
+          EMAIL_ENABLED: 'true'
           EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
           EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
           EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
